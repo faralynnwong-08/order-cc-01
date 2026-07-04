@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Rail — Multi-Outlet Ordering System</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --ink:#1E2124;
+  --paper:#F7F3E9;
+  --tile:#12181A;
+  --tile-2:#1B2427;
+  --tile-line:rgba(255,255,255,0.08);
+  --amber:#E8A33D;
+  --amber-dim:#B97C24;
+  --teal:#2F6F5C;
+  --stamp-red:#A8362A;
+  --stamp-green:#2F6F5C;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--tile); color:var(--paper); font-family:'Inter',sans-serif; min-height:100vh;}
+h1,h2,h3{font-family:'Oswald',sans-serif; margin:0; letter-spacing:0.02em;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+.topbar{background:var(--tile-2); border-bottom:1px solid var(--tile-line); padding:14px 20px 0 20px; position:sticky; top:0; z-index:50;}
+.brand{display:flex; align-items:baseline; gap:10px; margin-bottom:12px;}
+.brand h1{font-size:22px; text-transform:uppercase;}
+.brand span{color:var(--amber); font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em;}
+.tabs{display:flex; gap:4px; overflow-x:auto;}
+.tab{font-family:'Oswald',sans-serif; font-size:14px; text-transform:uppercase; letter-spacing:0.03em; color:rgba(247,243,233,0.55); background:transparent; border:none; padding:10px 16px; cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap;}
+.tab.active{color:var(--paper); border-bottom-color:var(--amber);}
+.tab:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+
+main{max-width:1180px; margin:0 auto; padding:20px 16px 60px 16px;}
+
+button{font-family:'Inter',sans-serif; cursor:pointer;}
+.btn{border:none; border-radius:8px; padding:10px 16px; font-weight:600; font-size:14px;}
+.btn-primary{background:var(--amber); color:#1E2124;}
+.btn-primary:hover{background:#f0b358;}
+.btn-outline{background:transparent; border:1px solid rgba(247,243,233,0.35); color:var(--paper);}
+.btn-outline:hover{border-color:var(--paper);}
+.btn-teal{background:var(--teal); color:var(--paper);}
+.btn-small{padding:6px 10px; font-size:12px; border-radius:6px;}
+.btn:disabled{opacity:0.4; cursor:not-allowed;}
+.btn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+
+.empty{border:1px dashed rgba(247,243,233,0.25); border-radius:12px; padding:40px 20px; text-align:center; color:rgba(247,243,233,0.55); font-size:14px; max-width:520px; margin:40px auto;}
+
+select, input[type=number], input[type=text]{
+  background:var(--tile); color:var(--paper); border:1px solid rgba(247,243,233,0.3);
+  border-radius:6px; padding:8px 10px; font-family:'IBM Plex Mono',monospace; font-size:13px;
+}
+label.lbl{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:rgba(247,243,233,0.5); display:block; margin-bottom:4px;}
+
+.outlet-bar{background:var(--tile-2); border:1px solid var(--tile-line); border-radius:12px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; width:100%; margin-bottom:18px;}
+.outlet-bar .country-tag{font-size:11px; padding:2px 8px; border-radius:999px; margin-left:8px; background:rgba(232,163,61,0.2); color:var(--amber);}
+.outlet-bar .kmode{font-size:11px; color:rgba(247,243,233,0.5); margin-top:4px;}
+
+/* ---------- Customer ---------- */
+.customer-wrap{display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap;}
+.menu-col{flex:1 1 480px; min-width:280px;}
+.cats{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+.cat-chip{background:var(--tile-2); border:1px solid var(--tile-line); color:rgba(247,243,233,0.7); border-radius:999px; padding:7px 14px; font-size:13px; font-weight:600;}
+.cat-chip.active{background:var(--amber); color:#1E2124; border-color:var(--amber);}
+.menu-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px;}
+.menu-item{background:var(--tile-2); border:1px solid var(--tile-line); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px; position:relative;}
+.menu-item .emoji{font-size:28px;}
+.menu-item .name{font-weight:700; font-size:15px;}
+.menu-item .price{font-family:'IBM Plex Mono',monospace; color:var(--amber); font-size:14px;}
+.menu-item .special-tag{position:absolute; top:10px; right:10px; font-size:10px; background:var(--teal); color:var(--paper); padding:2px 7px; border-radius:999px; text-transform:uppercase; letter-spacing:0.04em;}
+.menu-item .add-row{display:flex; align-items:center; justify-content:space-between; margin-top:auto;}
+.qty-stepper{display:flex; align-items:center; gap:8px; background:var(--tile); border-radius:8px; padding:4px 8px;}
+.qty-stepper button{background:none; border:none; color:var(--paper); font-size:16px; font-weight:700; width:22px;}
+.qty-stepper span{min-width:18px; text-align:center; font-family:'IBM Plex Mono',monospace;}
+
+.cart-col{flex:0 0 340px; min-width:280px; position:sticky; top:150px;}
+.ticket{
+  background:var(--paper); color:var(--ink); border-radius:2px 2px 0 0; padding:22px 20px 26px 20px;
+  clip-path: polygon(0 0, 100% 0, 100% 96%, 98% 100%, 96% 96%, 94% 100%, 92% 96%, 90% 100%, 88% 96%, 86% 100%, 84% 96%, 82% 100%, 80% 96%, 78% 100%, 76% 96%, 74% 100%, 72% 96%, 70% 100%, 68% 96%, 66% 100%, 64% 96%, 62% 100%, 60% 96%, 58% 100%, 56% 96%, 54% 100%, 52% 96%, 50% 100%, 48% 96%, 46% 100%, 44% 96%, 42% 100%, 40% 96%, 38% 100%, 36% 96%, 34% 100%, 32% 96%, 30% 100%, 28% 96%, 26% 100%, 24% 96%, 22% 100%, 20% 96%, 18% 100%, 16% 96%, 14% 100%, 12% 96%, 10% 100%, 8% 96%, 6% 100%, 4% 96%, 2% 100%, 0 96%);
+  box-shadow:0 12px 24px rgba(0,0,0,0.35);
+}
+.ticket h3{font-family:'IBM Plex Mono',monospace; font-size:13px; text-transform:uppercase; letter-spacing:0.1em; border-bottom:1px dashed rgba(30,33,36,0.3); padding-bottom:10px; margin-bottom:10px;}
+.ticket .line{display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:13px; padding:5px 0;}
+.ticket .line .rm{background:none; border:none; color:var(--stamp-red); font-size:11px; cursor:pointer; margin-left:6px;}
+.ticket .divider{border-top:1px dashed rgba(30,33,36,0.3); margin:10px 0;}
+.ticket .total-line{font-weight:700; font-size:15px;}
+.ticket .empty-cart{font-family:'IBM Plex Mono',monospace; font-size:13px; color:rgba(30,33,36,0.55); padding:10px 0;}
+.cart-actions{margin-top:14px; display:flex; flex-direction:column; gap:8px;}
+.pay-option{display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid rgba(30,33,36,0.25); border-radius:8px; padding:12px 14px; margin-bottom:10px; cursor:pointer; background:#fff;}
+.pay-option:hover{border-color:var(--teal);}
+.pay-option .t{font-weight:700; font-size:14px;}
+.pay-option .d{font-size:12px; color:rgba(30,33,36,0.6);}
+.stamp{display:inline-block; font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.08em; border:3px solid currentColor; border-radius:6px; padding:4px 12px; font-size:13px; font-weight:700; transform:rotate(-6deg); opacity:0.85;}
+.stamp.paid{color:var(--stamp-green);} .stamp.pending{color:var(--stamp-red);} .stamp.ready{color:var(--stamp-green);}
+.confirm-box{text-align:center; padding:10px 4px;}
+.confirm-box .num{font-family:'Oswald',sans-serif; font-size:38px; color:var(--ink);}
+.spinner{width:22px; height:22px; border:3px solid rgba(30,33,36,0.2); border-top-color:var(--teal); border-radius:50%; display:inline-block; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ---------- Kitchen ---------- */
+.kitchen-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:18px;}
+.kot{background:var(--paper); color:var(--ink); border-radius:2px 2px 0 0; padding:16px 16px 22px 16px;
+  clip-path: polygon(0 0, 100% 0, 100% 96%, 98% 100%, 96% 96%, 94% 100%, 92% 96%, 90% 100%, 88% 96%, 86% 100%, 84% 96%, 82% 100%, 80% 96%, 78% 100%, 76% 96%, 74% 100%, 72% 96%, 70% 100%, 68% 96%, 66% 100%, 64% 96%, 62% 100%, 60% 96%, 58% 100%, 56% 96%, 54% 100%, 52% 96%, 50% 100%, 48% 96%, 46% 100%, 44% 96%, 42% 100%, 40% 96%, 38% 100%, 36% 96%, 34% 100%, 32% 96%, 30% 100%, 28% 96%, 26% 100%, 24% 96%, 22% 100%, 20% 96%, 18% 100%, 16% 96%, 14% 100%, 12% 96%, 10% 100%, 8% 96%, 6% 100%, 4% 96%, 2% 100%, 0 96%);
+  box-shadow:0 10px 20px rgba(0,0,0,0.4);
+}
+.kot.status-preparing{box-shadow:0 0 0 2px var(--amber-dim), 0 10px 20px rgba(0,0,0,0.4);}
+.kot.status-ready{box-shadow:0 0 0 2px var(--teal), 0 10px 20px rgba(0,0,0,0.4);}
+.kot-head{display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px dashed rgba(30,33,36,0.35); padding-bottom:8px; margin-bottom:8px;}
+.kot-head .table{font-family:'Oswald',sans-serif; font-size:20px;}
+.kot-head .timer{font-family:'IBM Plex Mono',monospace; font-size:12px; color:rgba(30,33,36,0.6);}
+.kot .id{font-family:'IBM Plex Mono',monospace; font-size:11px; color:rgba(30,33,36,0.5); margin-bottom:8px;}
+.kot .item{font-family:'IBM Plex Mono',monospace; font-size:13px; padding:3px 0; display:flex; justify-content:space-between;}
+.kot .item .q{font-weight:700;}
+.kot-foot{margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;}
+
+/* ---------- Waiter ---------- */
+.floor-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;}
+.floor-card{background:var(--tile-2); border:1px solid var(--tile-line); border-radius:12px; padding:16px;}
+.floor-card .table-hdr{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+.floor-card .table-hdr h3{font-size:19px;}
+.pipeline{display:flex; align-items:center; gap:4px; margin:10px 0;}
+.pipe-step{flex:1; text-align:center; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; font-family:'IBM Plex Mono',monospace; color:rgba(247,243,233,0.35); border-bottom:3px solid rgba(247,243,233,0.15); padding-bottom:6px;}
+.pipe-step.done{color:var(--amber); border-bottom-color:var(--amber);}
+.floor-card .payment-row{display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:13px;}
+.floor-card .items-summary{font-family:'IBM Plex Mono',monospace; font-size:12px; color:rgba(247,243,233,0.6); margin:8px 0;}
+
+/* ---------- Reports ---------- */
+.stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:24px;}
+.stat-card{background:var(--tile-2); border:1px solid var(--tile-line); border-radius:12px; padding:16px;}
+.stat-card .num{font-family:'Oswald',sans-serif; font-size:28px; color:var(--amber);}
+.stat-card .lbl{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(247,243,233,0.55);}
+.report-section{margin-bottom:28px;}
+.report-section h3{font-size:16px; text-transform:uppercase; letter-spacing:0.05em; color:rgba(247,243,233,0.7); margin-bottom:12px;}
+table.report-table{width:100%; border-collapse:collapse; font-family:'IBM Plex Mono',monospace; font-size:13px;}
+table.report-table th{text-align:left; color:rgba(247,243,233,0.5); font-weight:500; padding:8px 10px; border-bottom:1px solid var(--tile-line); text-transform:uppercase; font-size:11px; letter-spacing:0.05em;}
+table.report-table td{padding:8px 10px; border-bottom:1px solid var(--tile-line);}
+.top-item-row{display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--tile-line); font-size:14px;}
+.badge{font-size:11px; padding:2px 8px; border-radius:999px; font-weight:600;}
+.badge.online{background:rgba(47,111,92,0.25); color:#7fd1ba;}
+.badge.cashier{background:rgba(232,163,61,0.2); color:var(--amber);}
+.hour-bar-row{display:flex; align-items:center; gap:10px; margin-bottom:6px; font-family:'IBM Plex Mono',monospace; font-size:12px;}
+.hour-bar-row .hr{width:52px; color:rgba(247,243,233,0.55);}
+.hour-bar-track{flex:1; background:var(--tile); border-radius:4px; height:14px; overflow:hidden;}
+.hour-bar-fill{background:var(--amber); height:100%;}
+.hour-bar-row .ct{width:28px; text-align:right; color:rgba(247,243,233,0.6);}
+
+/* ---------- HQ Admin ---------- */
+.admin-note{font-size:13px; color:rgba(247,243,233,0.55); margin-bottom:16px; max-width:640px;}
+table.admin-table{width:100%; border-collapse:collapse; font-size:13px;}
+table.admin-table th{text-align:left; padding:8px 10px; border-bottom:1px solid var(--tile-line); font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; color:rgba(247,243,233,0.5);}
+table.admin-table td{padding:8px 10px; border-bottom:1px solid var(--tile-line); vertical-align:middle;}
+.admin-price-cell{display:flex; align-items:center; gap:6px;}
+.admin-price-cell input[type=number]{width:70px;}
+.admin-avail{display:flex; align-items:center; gap:5px; font-size:11px; color:rgba(247,243,233,0.6);}
+.special-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:var(--tile-2); border:1px solid var(--tile-line); border-radius:8px; padding:10px 12px; margin-bottom:8px;}
+.special-row .name{font-weight:600; flex:1; min-width:120px;}
+.add-special-form{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; background:var(--tile-2); border:1px dashed rgba(247,243,233,0.25); border-radius:8px; padding:14px; margin-top:10px;}
+.add-special-form .fld{display:flex; flex-direction:column; gap:4px;}
+
+@media(max-width:720px){
+  .cart-col{position:static;}
+  .customer-wrap{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <h1>Order Rail</h1>
+    <span>MULTI-OUTLET · QR ORDERING · KITCHEN · FLOOR · REPORTS</span>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</div>
+
+<main id="view"></main>
+
+<script>
+/* ============ OUTLETS ============ */
+const OUTLETS = [
+  {id:'orc', name:'Orchard Central', city:'Singapore', country:'SG', currency:'SGD', symbol:'$', taxLabel:'GST', taxRate:0.09, payments:['Card','PayNow'], kitchenMode:'screen'},
+  {id:'tpn', name:'Tampines Hub', city:'Singapore', country:'SG', currency:'SGD', symbol:'$', taxLabel:'GST', taxRate:0.09, payments:['Card','PayNow'], kitchenMode:'print'},
+  {id:'bkt', name:'Bukit Bintang', city:'Kuala Lumpur', country:'MY', currency:'MYR', symbol:'RM', taxLabel:'SST', taxRate:0.06, payments:['Card','DuitNow'], kitchenMode:'both'},
+];
+function outlet(id){ return OUTLETS.find(o=>o.id===id); }
+
+/* ============ CORE MENU (HQ-controlled) ============ */
+const CORE_MENU = [
+  {id:'m1', cat:'Starters', name:'Curry Puffs (3pc)', emoji:'🥟'},
+  {id:'m2', cat:'Starters', name:'Popiah', emoji:'🌯'},
+  {id:'m3', cat:'Starters', name:'Chicken Wings (4pc)', emoji:'🍗'},
+  {id:'m4', cat:'Mains', name:'Chicken Rice', emoji:'🍚'},
+  {id:'m5', cat:'Mains', name:'Laksa', emoji:'🍜'},
+  {id:'m6', cat:'Mains', name:'Nasi Lemak', emoji:'🍛'},
+  {id:'m7', cat:'Mains', name:'Char Kway Teow', emoji:'🍝'},
+  {id:'m8', cat:'Mains', name:'Mee Goreng', emoji:'🍛'},
+  {id:'m9', cat:'Beverages', name:'Teh Tarik', emoji:'🧋'},
+  {id:'m10', cat:'Beverages', name:'Kopi O', emoji:'☕'},
+  {id:'m11', cat:'Beverages', name:'Iced Milo', emoji:'🥛'},
+  {id:'m12', cat:'Beverages', name:'Barley Water', emoji:'🧃'},
+  {id:'m13', cat:'Desserts', name:'Chendol', emoji:'🍧'},
+  {id:'m14', cat:'Desserts', name:'Kaya Toast Set', emoji:'🍞'},
+  {id:'m15', cat:'Desserts', name:'Ice Kachang', emoji:'🍨'},
+];
+const CATS = ['Starters','Mains','Beverages','Desserts'];
+
+/* Per-outlet price overrides (HQ sets absolute price in the outlet's own currency).
+   SG outlets default to the SGD base price unless overridden; MY needs its own
+   price set explicitly since it's a different currency. */
+const BASE_SGD = {m1:3.80,m2:3.50,m3:5.50,m4:4.80,m5:5.80,m6:5.50,m7:5.50,m8:5.00,m9:2.20,m10:1.80,m11:2.50,m12:2.00,m13:3.50,m14:3.80,m15:3.50};
+const BASE_MYR = {m1:8.50,m2:7.50,m3:12.00,m4:11.00,m5:13.00,m6:12.50,m7:12.00,m8:11.50,m9:5.00,m10:4.00,m11:5.50,m12:4.50,m13:7.50,m14:8.00,m15:7.50};
+
+const state = {
+  tab: 'customer',
+  overrides: {
+    orc: {}, // {itemId:{price?, available?}} - empty = use SGD base, available
+    tpn: {},
+    bkt: {}, // start populated with MYR base prices below
+  },
+  specials: [
+    {id:'s1', outlet:'orc', cat:'Mains', name:'Truffle Fries', price:6.50, emoji:'🍟'},
+    {id:'s2', outlet:'tpn', cat:'Mains', name:'Prata Set (2pc)', price:4.50, emoji:'🫓'},
+    {id:'s3', outlet:'bkt', cat:'Mains', name:'Nasi Kandar', price:14.00, emoji:'🍛'},
+    {id:'s4', outlet:'bkt', cat:'Starters', name:'Roti Canai', price:4.50, emoji:'🫓'},
+  ],
+  nextSpecialNum: 5,
+  customerOutlet: 'orc',
+  table: 'Table 07',
+  activeCat: 'Starters',
+  cart: {},
+  checkoutStep: 'cart',
+  lastOrder: null,
+  staffOutlet: 'orc',       // which outlet's kitchen/floor screen we're viewing
+  reportOutlet: 'ALL',      // outlet filter for reports
+  orders: [],
+  nextOrderNum: 1,
+};
+// seed MYR overrides so Bukit Bintang has explicit local pricing
+Object.keys(BASE_MYR).forEach(id=>{ state.overrides.bkt[id] = {price: BASE_MYR[id]}; });
+
+const TABLES = Array.from({length:10},(_,i)=>`Table ${String(i+1).padStart(2,'0')}`);
+
+function fmt(n, o){ return o.symbol + n.toFixed(2); }
+
+function priceFor(itemId, outletId){
+  const ov = state.overrides[outletId][itemId];
+  if(ov && ov.price!=null) return ov.price;
+  return BASE_SGD[itemId]; // fallback (SG outlets without override)
+}
+function isAvailable(itemId, outletId){
+  const ov = state.overrides[outletId][itemId];
+  return !(ov && ov.available===false);
+}
+function menuForOutlet(outletId){
+  const core = CORE_MENU.filter(m=>isAvailable(m.id,outletId)).map(m=>({...m, price:priceFor(m.id,outletId), special:false}));
+  const specials = state.specials.filter(s=>s.outlet===outletId).map(s=>({...s, special:true}));
+  return [...core, ...specials];
+}
+
+/* ============ CART ============ */
+function cartItemsArr(){
+  const menu = menuForOutlet(state.customerOutlet);
+  return Object.entries(state.cart).filter(([,q])=>q>0).map(([id,q])=>{
+    const m = menu.find(x=>x.id===id);
+    if(!m) return null;
+    return {id, name:m.name, price:m.price, qty:q};
+  }).filter(Boolean);
+}
+function cartSubtotal(){ return cartItemsArr().reduce((s,i)=>s+i.price*i.qty,0); }
+
+/* ============ TABS ============ */
+const TABS = [
+  {id:'customer', label:'Customer (QR)'},
+  {id:'kitchen', label:'Kitchen'},
+  {id:'waiter', label:'Floor / Waiter'},
+  {id:'reports', label:'Daily Reports'},
+  {id:'admin', label:'HQ Menu Admin'},
+];
+function renderTabs(){
+  document.getElementById('tabs').innerHTML = TABS.map(t=>
+    `<button class="tab ${state.tab===t.id?'active':''}" onclick="selectTab('${t.id}')">${t.label}</button>`
+  ).join('');
+}
+function selectTab(id){ state.tab = id; render(); }
+
+/* ============ CUSTOMER VIEW ============ */
+function addToCart(id){ state.cart[id] = (state.cart[id]||0)+1; render(); }
+function stepQty(id, delta){
+  const cur = state.cart[id]||0;
+  state.cart[id] = Math.max(0, cur+delta);
+  render();
+}
+function switchCustomerOutlet(id){
+  state.customerOutlet = id;
+  state.cart = {};
+  state.checkoutStep = 'cart';
+  render();
+}
+
+function renderCustomer(){
+  const o = outlet(state.customerOutlet);
+  const menu = menuForOutlet(state.customerOutlet).filter(m=>m.cat===state.activeCat);
+  const items = cartItemsArr();
+  const subtotal = cartSubtotal();
+  const tax = subtotal*o.taxRate;
+  const total = subtotal+tax;
+
+  const menuHtml = menu.map(m=>{
+    const qty = state.cart[m.id]||0;
+    return `<div class="menu-item">
+      ${m.special ? `<div class="special-tag">${o.city} Special</div>` : ''}
+      <div class="emoji">${m.emoji}</div>
+      <div class="name">${m.name}</div>
+      <div class="price">${fmt(m.price,o)}</div>
+      <div class="add-row">
+        ${qty===0
+          ? `<button class="btn btn-primary btn-small" onclick="addToCart('${m.id}')">Add</button>`
+          : `<div class="qty-stepper"><button onclick="stepQty('${m.id}',-1)">–</button><span>${qty}</span><button onclick="stepQty('${m.id}',1)">+</button></div>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  const catChips = CATS.map(c=>`<button class="cat-chip ${state.activeCat===c?'active':''}" onclick="state.activeCat='${c}'; render();">${c}</button>`).join('');
+
+  let cartInner;
+  if(state.checkoutStep==='confirmed' && state.lastOrder){
+    const ord = state.lastOrder;
+    const oo = outlet(ord.outlet);
+    cartInner = `<h3>Order Confirmed</h3>
+      <div class="confirm-box">
+        <div class="mono" style="font-size:12px; color:rgba(30,33,36,0.6);">ORDER NUMBER</div>
+        <div class="num">#${ord.id}</div>
+        <div style="margin:12px 0;"><span class="stamp ${ord.paymentStatus==='paid'?'paid':'pending'}">${ord.paymentStatus==='paid'?'Paid':'Pay at Cashier'}</span></div>
+        <div class="mono" style="font-size:12px; color:rgba(30,33,36,0.6);">Sent to the ${oo.name} kitchen for ${ord.table}.</div>
+      </div>
+      <div class="cart-actions"><button class="btn btn-teal" onclick="startNewOrder()">Start a new order</button></div>`;
+  } else if(state.checkoutStep==='paying'){
+    const methodLabel = o.payments.join(' / ');
+    cartInner = `<h3>Choose Payment</h3>
+      <div class="pay-option" onclick="choosePayment('online')">
+        <div><div class="t">Pay Online Now</div><div class="d">${methodLabel}</div></div><div>→</div>
+      </div>
+      <div class="pay-option" onclick="choosePayment('cashier')">
+        <div><div class="t">Pay at Cashier</div><div class="d">Settle bill after your meal</div></div><div>→</div>
+      </div>
+      <div class="cart-actions"><button class="btn btn-outline" onclick="state.checkoutStep='cart'; render();">Back to cart</button></div>`;
+  } else if(state.checkoutStep==='processing'){
+    cartInner = `<div class="confirm-box"><span class="spinner"></span><span class="mono">Processing payment…</span></div>`;
+  } else {
+    cartInner = `<h3>${state.table} · Your Order</h3>
+      ${items.length===0 ? `<div class="empty-cart">Nothing in your order yet. Tap "Add" on a dish to start.</div>` :
+      items.map(i=>`<div class="line"><span>${i.qty} × ${i.name}<button class="rm" onclick="stepQty('${i.id}',-${i.qty})">remove</button></span><span>${fmt(i.price*i.qty,o)}</span></div>`).join('')}
+      ${items.length>0 ? `
+      <div class="divider"></div>
+      <div class="line"><span>Subtotal</span><span>${fmt(subtotal,o)}</span></div>
+      <div class="line"><span>${o.taxLabel} (${(o.taxRate*100).toFixed(0)}%)</span><span>${fmt(tax,o)}</span></div>
+      <div class="divider"></div>
+      <div class="line total-line"><span>Total</span><span>${fmt(total,o)}</span></div>` : ''}
+      <div class="cart-actions"><button class="btn btn-primary" ${items.length===0?'disabled':''} onclick="state.checkoutStep='paying'; render();">Place Order</button></div>`;
+  }
+
+  return `
+  <div class="outlet-bar">
+    <div>
+      <div class="lbl">Scanned via QR at</div>
+      <div style="font-family:'Oswald',sans-serif; font-size:20px; color:var(--amber);">${o.name}<span class="country-tag">${o.country}</span></div>
+      <div class="kmode">${o.city} · Prices in ${o.currency}</div>
+    </div>
+    <div style="display:flex; gap:14px; flex-wrap:wrap;">
+      <div>
+        <label class="lbl">Demo: switch outlet</label>
+        <select onchange="switchCustomerOutlet(this.value)">
+          ${OUTLETS.map(x=>`<option value="${x.id}" ${x.id===state.customerOutlet?'selected':''}>${x.name}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="lbl">Demo: switch table</label>
+        <select onchange="state.table=this.value; render();">
+          ${TABLES.map(t=>`<option value="${t}" ${t===state.table?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="customer-wrap">
+    <div class="menu-col">
+      <div class="cats">${catChips}</div>
+      <div class="menu-grid">${menuHtml}</div>
+    </div>
+    <div class="cart-col"><div class="ticket">${cartInner}</div></div>
+  </div>`;
+}
+
+function startNewOrder(){
+  state.cart = {}; state.checkoutStep = 'cart'; state.lastOrder = null; render();
+}
+function choosePayment(method){
+  state.checkoutStep = 'processing'; render();
+  setTimeout(()=>{
+    const items = cartItemsArr();
+    const o = outlet(state.customerOutlet);
+    const subtotal = cartSubtotal();
+    const total = subtotal*(1+o.taxRate);
+    const now = Date.now();
+    const order = {
+      id: String(state.nextOrderNum++).padStart(3,'0'),
+      outlet: state.customerOutlet,
+      table: state.table, items, subtotal, total, method,
+      paymentStatus: method==='online' ? 'paid' : 'pending',
+      status: 'new',
+      createdAt: now, preparingAt:null, readyAt:null, servedAt:null,
+    };
+    state.orders.push(order);
+    state.lastOrder = order;
+    state.checkoutStep = 'confirmed';
+    state.cart = {};
+    render();
+  }, 1100);
+}
+
+/* ============ KITCHEN VIEW ============ */
+function elapsed(ms){
+  const s = Math.floor((Date.now()-ms)/1000);
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+function advanceOrder(id){
+  const o = state.orders.find(x=>x.id===id);
+  if(!o) return;
+  const now = Date.now();
+  if(o.status==='new'){ o.status='preparing'; o.preparingAt=now; }
+  else if(o.status==='preparing'){ o.status='ready'; o.readyAt=now; }
+  render();
+}
+function printTicket(id){
+  const o = state.orders.find(x=>x.id===id);
+  const ot = outlet(o.outlet);
+  const w = window.open('', '_blank', 'width=320,height=500');
+  w.document.write(`<html><head><title>KOT #${o.id}</title>
+    <style>body{font-family:monospace; padding:16px; font-size:13px;} h2{margin:0 0 4px 0;} hr{border:none; border-top:1px dashed #000;}</style>
+    </head><body>
+    <h2>${ot.name}</h2>
+    <div>${o.table} — KOT #${o.id}</div>
+    <div>${new Date(o.createdAt).toLocaleTimeString()}</div>
+    <hr>
+    ${o.items.map(i=>`<div>${i.qty} x ${i.name}</div>`).join('')}
+    <hr>
+    <div>${o.method==='online'?'PAID ONLINE':'BILL TO CASHIER'}</div>
+    </body></html>`);
+  w.document.close();
+  w.print();
+}
+function renderKitchen(){
+  const ot = outlet(state.staffOutlet);
+  const active = state.orders.filter(o=>o.outlet===state.staffOutlet && o.status!=='served').sort((a,b)=>a.createdAt-b.createdAt);
+  const selector = `
+  <div class="outlet-bar">
+    <div><div class="lbl">Kitchen screen for</div><div style="font-family:'Oswald',sans-serif; font-size:20px;">${ot.name}</div>
+    <div class="kmode">Output mode: ${ot.kitchenMode==='both'?'Screen + Printer':ot.kitchenMode==='print'?'Printer only':'Screen only'}</div></div>
+    <div><label class="lbl">Switch outlet</label>
+      <select onchange="state.staffOutlet=this.value; render();">
+        ${OUTLETS.map(x=>`<option value="${x.id}" ${x.id===state.staffOutlet?'selected':''}>${x.name}</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+  if(active.length===0){
+    return selector + `<div class="empty">No tickets on the rail for ${ot.name}. Orders placed by customers at this outlet will appear here.</div>`;
+  }
+  const canPrint = ot.kitchenMode==='print' || ot.kitchenMode==='both';
+  const cards = active.map(o=>{
+    const nextLabel = o.status==='new' ? 'Start Preparing' : (o.status==='preparing' ? 'Mark Ready' : null);
+    return `<div class="kot status-${o.status}">
+      <div class="kot-head"><span class="table">${o.table}</span><span class="timer">${elapsed(o.createdAt)}</span></div>
+      <div class="id">KOT #${o.id} · ${o.method==='online'?'Paid Online':'Cashier Bill'}</div>
+      ${o.items.map(i=>`<div class="item"><span class="q">${i.qty}×</span><span style="flex:1; padding:0 8px;">${i.name}</span></div>`).join('')}
+      <div class="kot-foot">
+        ${nextLabel ? `<button class="btn btn-teal btn-small" onclick="advanceOrder('${o.id}')">${nextLabel}</button>` : `<span class="stamp ready">Ready</span>`}
+        ${canPrint ? `<button class="btn btn-outline btn-small" onclick="printTicket('${o.id}')">Print Ticket</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  return selector + `<div class="kitchen-grid">${cards}</div>`;
+}
+
+/* ============ WAITER VIEW ============ */
+function markServed(id){
+  const o = state.orders.find(x=>x.id===id);
+  if(o){ o.status='served'; o.servedAt=Date.now(); }
+  render();
+}
+function markPaid(id){
+  const o = state.orders.find(x=>x.id===id);
+  if(o) o.paymentStatus='paid';
+  render();
+}
+function renderWaiter(){
+  const ot = outlet(state.staffOutlet);
+  const selector = `
+  <div class="outlet-bar">
+    <div><div class="lbl">Floor view for</div><div style="font-family:'Oswald',sans-serif; font-size:20px;">${ot.name}</div></div>
+    <div><label class="lbl">Switch outlet</label>
+      <select onchange="state.staffOutlet=this.value; render();">
+        ${OUTLETS.map(x=>`<option value="${x.id}" ${x.id===state.staffOutlet?'selected':''}>${x.name}</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+  const active = state.orders.filter(o=>o.outlet===state.staffOutlet && o.status!=='served').sort((a,b)=>a.table.localeCompare(b.table));
+  if(active.length===0){
+    return selector + `<div class="empty">No tables to check on right now at ${ot.name}.</div>`;
+  }
+  const steps = ['new','preparing','ready'];
+  const stepLabels = {new:'Sent', preparing:'Preparing', ready:'Ready'};
+  const cards = active.map(o=>{
+    const idx = steps.indexOf(o.status);
+    const pipeline = steps.map((s,i)=>`<div class="pipe-step ${i<=idx?'done':''}">${stepLabels[s]}</div>`).join('');
+    return `<div class="floor-card">
+      <div class="table-hdr"><h3>${o.table}</h3><span class="mono" style="font-size:11px; color:rgba(247,243,233,0.5);">#${o.id}</span></div>
+      <div class="pipeline">${pipeline}</div>
+      <div class="items-summary">${o.items.map(i=>i.qty+'× '+i.name).join(', ')}</div>
+      <div class="payment-row">
+        ${o.paymentStatus==='paid' ? `<span class="stamp paid">Paid</span>` : `<span class="stamp pending">Owes ${fmt(o.total,ot)}</span>`}
+        ${o.paymentStatus!=='paid' ? `<button class="btn btn-outline btn-small" onclick="markPaid('${o.id}')">Mark Paid</button>` : ''}
+      </div>
+      ${o.status==='ready' ? `<div style="margin-top:10px;"><button class="btn btn-primary btn-small" onclick="markServed('${o.id}')">Mark Served</button></div>` : ''}
+    </div>`;
+  }).join('');
+  return selector + `<div class="floor-grid">${cards}</div>`;
+}
+
+/* ============ REPORTS VIEW ============ */
+function resetDemo(){
+  state.orders = []; state.nextOrderNum = 1; state.cart = {}; state.checkoutStep = 'cart'; render();
+}
+function ordersForReport(){
+  return state.reportOutlet==='ALL' ? state.orders : state.orders.filter(o=>o.outlet===state.reportOutlet);
+}
+function avgSpeed(orders){
+  const kitchenTimes = orders.filter(o=>o.readyAt).map(o=>(o.readyAt-o.createdAt)/1000);
+  const serviceTimes = orders.filter(o=>o.servedAt && o.readyAt).map(o=>(o.servedAt-o.readyAt)/1000);
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+  return {kitchen: avg(kitchenTimes), service: avg(serviceTimes)};
+}
+function secToMin(s){ return s==null ? '—' : (s/60).toFixed(1)+'m'; }
+
+function renderReports(){
+  const selector = `
+  <div class="outlet-bar">
+    <div><div class="lbl">Viewing reports for</div><div style="font-family:'Oswald',sans-serif; font-size:20px;">${state.reportOutlet==='ALL'?'All Outlets':outlet(state.reportOutlet).name}</div></div>
+    <div><label class="lbl">Choose scope</label>
+      <select onchange="state.reportOutlet=this.value; render();">
+        <option value="ALL" ${state.reportOutlet==='ALL'?'selected':''}>All Outlets</option>
+        ${OUTLETS.map(x=>`<option value="${x.id}" ${x.id===state.reportOutlet?'selected':''}>${x.name}</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+
+  const orders = ordersForReport();
+  if(orders.length===0){
+    return selector + `<div class="empty">No sales yet in this scope. Once customers place orders, this page fills in with revenue, item, and timing data.</div>
+    <div style="text-align:center;"><button class="btn btn-outline" onclick="resetDemo()">Reset demo data</button></div>`;
+  }
+
+  // Time-of-day buckets (counts only — safe to combine across currencies)
+  const hourCounts = {};
+  orders.forEach(o=>{ const h = new Date(o.createdAt).getHours(); hourCounts[h] = (hourCounts[h]||0)+1; });
+  const maxHourCt = Math.max(...Object.values(hourCounts));
+  const hourRows = Object.keys(hourCounts).sort((a,b)=>a-b).map(h=>{
+    const ct = hourCounts[h];
+    const pct = Math.round((ct/maxHourCt)*100);
+    const label = `${String(h).padStart(2,'0')}:00`;
+    return `<div class="hour-bar-row"><span class="hr">${label}</span><div class="hour-bar-track"><div class="hour-bar-fill" style="width:${pct}%"></div></div><span class="ct">${ct}</span></div>`;
+  }).join('');
+
+  // Top items (counts only)
+  const itemTotals = {};
+  orders.forEach(o=>o.items.forEach(i=>{ itemTotals[i.name] = (itemTotals[i.name]||0)+i.qty; }));
+  const topItems = Object.entries(itemTotals).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  let scopedBlock;
+  if(state.reportOutlet==='ALL'){
+    // cross-outlet comparison, each outlet keeps its own currency
+    const rows = OUTLETS.map(ot=>{
+      const os = state.orders.filter(o=>o.outlet===ot.id);
+      const revenue = os.filter(o=>o.paymentStatus==='paid').reduce((s,o)=>s+o.total,0);
+      const pending = os.filter(o=>o.paymentStatus==='pending').reduce((s,o)=>s+o.total,0);
+      const speed = avgSpeed(os);
+      return `<tr>
+        <td>${ot.name} <span class="mono" style="color:rgba(247,243,233,0.4);">(${ot.currency})</span></td>
+        <td>${os.length}</td>
+        <td>${fmt(revenue,ot)}</td>
+        <td>${fmt(pending,ot)}</td>
+        <td>${secToMin(speed.kitchen)}</td>
+        <td>${secToMin(speed.service)}</td>
+      </tr>`;
+    }).join('');
+    scopedBlock = `
+    <div class="report-section">
+      <h3>Cross-Outlet Comparison</h3>
+      <table class="report-table">
+        <thead><tr><th>Outlet</th><th>Orders</th><th>Collected</th><th>Pending</th><th>Avg Kitchen Time</th><th>Avg Service Time</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  } else {
+    const ot = outlet(state.reportOutlet);
+    const totalOrders = orders.length;
+    const revenuePaid = orders.filter(o=>o.paymentStatus==='paid').reduce((s,o)=>s+o.total,0);
+    const revenuePending = orders.filter(o=>o.paymentStatus==='pending').reduce((s,o)=>s+o.total,0);
+    const servedCount = orders.filter(o=>o.status==='served').length;
+    const speed = avgSpeed(orders);
+    scopedBlock = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num">${totalOrders}</div><div class="lbl">Orders Today</div></div>
+      <div class="stat-card"><div class="num">${fmt(revenuePaid,ot)}</div><div class="lbl">Collected</div></div>
+      <div class="stat-card"><div class="num">${fmt(revenuePending,ot)}</div><div class="lbl">Pending at Cashier</div></div>
+      <div class="stat-card"><div class="num">${servedCount}/${totalOrders}</div><div class="lbl">Fulfilled</div></div>
+    </div>
+    <div class="report-section">
+      <h3>Average Speed (outlet-wide)</h3>
+      <div class="top-item-row"><span>Order placed → Ready</span><span>${secToMin(speed.kitchen)}</span></div>
+      <div class="top-item-row"><span>Ready → Served</span><span>${secToMin(speed.service)}</span></div>
+    </div>`;
+  }
+
+  const rowsAll = orders.slice().sort((a,b)=>b.createdAt-a.createdAt).map(o=>{
+    const ot = outlet(o.outlet);
+    return `<tr>
+      <td>#${o.id}</td><td>${ot.name}</td><td>${o.table}</td>
+      <td>${new Date(o.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${fmt(o.total,ot)}</td>
+      <td><span class="badge ${o.method==='online'?'online':'cashier'}">${o.method==='online'?'Online':'Cashier'}</span></td>
+      <td>${o.paymentStatus==='paid'?'Paid':'Pending'}</td><td>${o.status}</td>
+    </tr>`;
+  }).join('');
+
+  return selector + scopedBlock + `
+  <div class="report-section">
+    <h3>Top Selling Items</h3>
+    ${topItems.map(([name,qty])=>`<div class="top-item-row"><span>${name}</span><span>${qty} sold</span></div>`).join('')}
+  </div>
+  <div class="report-section">
+    <h3>Orders by Time of Day</h3>
+    ${hourRows}
+  </div>
+  <div class="report-section">
+    <h3>All Orders in Scope</h3>
+    <table class="report-table">
+      <thead><tr><th>#</th><th>Outlet</th><th>Table</th><th>Time</th><th>Total</th><th>Method</th><th>Payment</th><th>Status</th></tr></thead>
+      <tbody>${rowsAll}</tbody>
+    </table>
+  </div>
+  <div style="text-align:center; margin-top:10px;"><button class="btn btn-outline" onclick="resetDemo()">Reset demo data</button></div>`;
+}
+
+/* ============ HQ MENU ADMIN ============ */
+function setOverridePrice(itemId, outletId, val){
+  const price = parseFloat(val);
+  if(!state.overrides[outletId][itemId]) state.overrides[outletId][itemId] = {};
+  state.overrides[outletId][itemId].price = isNaN(price) ? undefined : price;
+  render();
+}
+function toggleAvailable(itemId, outletId, checked){
+  if(!state.overrides[outletId][itemId]) state.overrides[outletId][itemId] = {};
+  state.overrides[outletId][itemId].available = checked;
+  render();
+}
+function setSpecialPrice(id, val){
+  const s = state.specials.find(x=>x.id===id);
+  const price = parseFloat(val);
+  if(s && !isNaN(price)) s.price = price;
+  render();
+}
+function removeSpecial(id){
+  state.specials = state.specials.filter(s=>s.id!==id);
+  render();
+}
+function addSpecial(){
+  const name = document.getElementById('newSpecialName').value.trim();
+  const price = parseFloat(document.getElementById('newSpecialPrice').value);
+  const cat = document.getElementById('newSpecialCat').value;
+  const oid = document.getElementById('newSpecialOutlet').value;
+  if(!name || isNaN(price)) return;
+  state.specials.push({id:'s'+(state.nextSpecialNum++), outlet:oid, cat, name, price, emoji:'🍽️'});
+  render();
+}
+function renderAdmin(){
+  const rows = CORE_MENU.map(m=>{
+    const cells = OUTLETS.map(o=>{
+      const price = priceFor(m.id,o.id);
+      const avail = isAvailable(m.id,o.id);
+      return `<td>
+        <div class="admin-price-cell">
+          <span>${o.symbol}</span>
+          <input type="number" step="0.10" value="${price.toFixed(2)}" onchange="setOverridePrice('${m.id}','${o.id}', this.value)">
+        </div>
+        <label class="admin-avail"><input type="checkbox" ${avail?'checked':''} onchange="toggleAvailable('${m.id}','${o.id}', this.checked)"> Available</label>
+      </td>`;
+    }).join('');
+    return `<tr><td>${m.emoji} ${m.name}<div class="mono" style="font-size:11px; color:rgba(247,243,233,0.4);">${m.cat}</div></td>${cells}</tr>`;
+  }).join('');
+
+  const specialsHtml = state.specials.map(s=>{
+    const o = outlet(s.outlet);
+    return `<div class="special-row">
+      <span class="name">${s.emoji} ${s.name}</span>
+      <span class="mono" style="font-size:12px; color:rgba(247,243,233,0.5);">${o.name} · ${s.cat}</span>
+      <span>${o.symbol}</span><input type="number" step="0.10" value="${s.price.toFixed(2)}" onchange="setSpecialPrice('${s.id}', this.value)">
+      <button class="btn btn-outline btn-small" onclick="removeSpecial('${s.id}')">Remove</button>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="admin-note">Only HQ edits the menu here. Prices and availability apply per outlet immediately — outlet managers don't have separate edit access in this build.</div>
+  <div class="report-section">
+    <h3>Core Menu — Price & Availability by Outlet</h3>
+    <table class="admin-table">
+      <thead><tr><th>Item</th>${OUTLETS.map(o=>`<th>${o.name} (${o.currency})</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <div class="report-section">
+    <h3>Local Specials</h3>
+    ${specialsHtml}
+    <div class="add-special-form">
+      <div class="fld"><label class="lbl">Name</label><input type="text" id="newSpecialName" placeholder="e.g. Wonton Soup"></div>
+      <div class="fld"><label class="lbl">Category</label>
+        <select id="newSpecialCat">${CATS.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+      </div>
+      <div class="fld"><label class="lbl">Outlet</label>
+        <select id="newSpecialOutlet">${OUTLETS.map(o=>`<option value="${o.id}">${o.name}</option>`).join('')}</select>
+      </div>
+      <div class="fld"><label class="lbl">Price</label><input type="number" step="0.10" id="newSpecialPrice" placeholder="0.00" style="width:80px;"></div>
+      <button class="btn btn-primary btn-small" onclick="addSpecial()">Add Special</button>
+    </div>
+  </div>`;
+}
+
+/* ============ MASTER RENDER ============ */
+function render(){
+  renderTabs();
+  const view = document.getElementById('view');
+  if(state.tab==='customer') view.innerHTML = renderCustomer();
+  else if(state.tab==='kitchen') view.innerHTML = renderKitchen();
+  else if(state.tab==='waiter') view.innerHTML = renderWaiter();
+  else if(state.tab==='reports') view.innerHTML = renderReports();
+  else if(state.tab==='admin') view.innerHTML = renderAdmin();
+}
+render();
+setInterval(()=>{ if(state.tab==='kitchen') render(); }, 1000);
+</script>
+</body>
+</html>
